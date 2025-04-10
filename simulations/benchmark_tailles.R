@@ -1,8 +1,8 @@
 # Benchmark sur différentes tailles de séquences
 
 # Chargement des fonctions
-source("src/naive_R/viterbi_naive.R")
-source("src/viterbi_R/viterbi_algo.R")
+source("C:/Users/gharb/Documents/M2algo_viterbi/M2algorithmique_Viterbi/src/naive_R/viterbi_naive.R")
+source("C:/Users/gharb/Documents/M2algo_viterbi/M2algorithmique_Viterbi/src/viterbi_R/viterbi_algo.R")
 
 # Paramètres communs
 states <- c("Pluie", "Soleil")

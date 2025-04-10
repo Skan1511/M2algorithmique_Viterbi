@@ -1,0 +1,112 @@
+---
+title: "Algorithme de Viterbi — Rapport M2"
+author: "Mohamed Skander Gharbi"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# Chargement des packages nécessaires
+library(gtools)
+library(ggplot2)
+library(reshape2)
+
+# Chargement des fonctions définies dans tes scripts
+source("C:/Users/gharb/Documents/M2algo_viterbi/M2algorithmique_Viterbi/src/naive_R/viterbi_naive.R")
+source("C:/Users/gharb/Documents/M2algo_viterbi/M2algorithmique_Viterbi/src/viterbi_R/viterbi_algo.R")
+
+```
+## Introduction
+
+Dans le cadre de ce projet, nous étudions l'algorithme de Viterbi, une méthode classique de programmation dynamique utilisée pour résoudre des problèmes de reconnaissance de séquences. Cet algorithme est notamment utilisé dans les modèles de Markov cachés (HMM - Hidden Markov Models), où l'objectif est de retrouver la séquence d'états cachés la plus probable ayant généré une suite d'observations.
+
+Nous comparons cette solution optimisée à une approche naïve (brute-force) qui teste toutes les séquences d'états possibles. Cette comparaison permettra de mettre en évidence l'intérêt pratique de l'algorithme de Viterbi.
+
+---
+
+## Problème étudié
+
+On considère un modèle de Markov caché défini par :
+- Un ensemble d'états cachés : \( S = \{s_1, s_2, \dots, s_N\} \)
+- Une séquence d'observations : \( O = \{o_1, o_2, \dots, o_T\} \)
+- Une matrice de transition \( A \) entre états cachés
+- Une matrice d'émission \( B \) reliant les états aux observations
+- Un vecteur de probabilités initiales \( \pi \)
+
+L'objectif est de trouver la séquence d'états cachés \( Q = \{q_1, q_2, \dots, q_T\} \) qui maximise la probabilité \( P(Q|O) \), c’est-à-dire la séquence d’états la plus probable étant donné les observations.
+
+---
+
+## Méthodes
+
+### Méthode naïve (brute-force)
+
+La méthode naïve consiste à générer **toutes les combinaisons possibles** d'états cachés de taille \( T \), puis à calculer leur probabilité via le modèle HMM.  
+**Complexité :** \( O(N^T) \)
+
+```{r}
+# Exemple : exécution de la méthode naïve
+sequence_naive <- trouver_sequence_naive(obs, states, pi, A, B)
+```
+## Algorithme de Viterbi
+
+L’algorithme de Viterbi repose sur la programmation dynamique. Il mémorise à chaque étape les meilleures probabilités d’atteindre chaque état, ainsi que le chemin correspondant.
+
+Cela permet de réduire considérablement le coût de calcul :  
+Complexité : \( O(N^2 \cdot T) \)
+
+```{r}
+# Exemple d'appel de l’algorithme de Viterbi
+sequence_viterbi <- viterbi(obs, states, pi, A, B)
+
+```
+## Benchmark expérimental
+
+Nous avons réalisé un benchmark sur des séquences d’observations de taille croissante, afin de comparer le temps d’exécution des deux méthodes.
+
+```{r}
+source("C:/Users/gharb/Documents/M2algo_viterbi/M2algorithmique_Viterbi/simulations/benchmark_tailles.R")
+
+library(ggplot2)
+library(reshape2)
+
+df_long <- melt(df, id.vars = "Taille", variable.name = "Méthode", value.name = "Temps")
+
+ggplot(df_long, aes(x = Taille, y = Temps, color = Méthode)) +
+  geom_line(size = 1.2) +
+  geom_point(size = 2) +
+  labs(
+    title = "Temps d'exécution selon la taille de la séquence",
+    x = "Taille de la séquence observée",
+    y = "Temps (secondes)",
+    color = "Méthode"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(plot.title = element_text(hjust = 0.5), legend.position = "bottom")
+
+
+```
+## Analyse des résultats
+
+Le graphique obtenu montre clairement la différence de complexité entre les deux approches :
+
+La méthode naïve devient rapidement coûteuse lorsque la taille de la séquence dépasse 7 ou 8 observations.
+
+L’algorithme de Viterbi reste extrêmement rapide, même pour des séquences plus longues.
+
+Ces résultats confirment les complexités théoriques attendues.
+
+## Conclusion
+Ce projet nous a permis d’implémenter deux approches pour résoudre le problème de décodage dans un HMM : une version naïve par force brute et une version optimisée avec l’algorithme de Viterbi.
+
+Les résultats empiriques obtenus montrent l'efficacité du Viterbi en termes de performance et de scalabilité, en particulier pour des séquences longues.
+
+Des perspectives d’amélioration incluent :
+
+Une implémentation C++ avec Rcpp
+
+L’application de cet algorithme à des cas réels (reconnaissance vocale, bioinformatique, traitement automatique du langage, etc.)
