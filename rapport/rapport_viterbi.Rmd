@@ -10,6 +10,9 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r}
+# Installation du package depuis GitHub (à adapter si un jour tu publies)
+devtools::install_github("Skan1511/viterbiM2")
+
 # Chargement des packages nécessaires
 library(gtools)
 library(ggplot2)
@@ -19,8 +22,7 @@ library(Biostrings)
 # Chargement des fonctions définies dans tes scripts
 source("C:/Users/gharb/Documents/M2algo_viterbi/M2algorithmique_Viterbi/src/naive_R/viterbi_naive.R")
 source("C:/Users/gharb/Documents/M2algo_viterbi/M2algorithmique_Viterbi/src/viterbi_R/viterbi_algo.R")
-source("C:/Users/gharb/Documents/M2algo_viterbi/M2algorithmique_Viterbi/src/naive_R/viterbi_naive_bio.R")
-source("C:/Users/gharb/Documents/M2algo_viterbi/M2algorithmique_Viterbi/src/viterbi_R/viterbi_bio.R")
+source("C:/Users/gharb/Documents/M2algo_viterbi/M2algorithmique_Viterbi/simulations/viterbi_brca1.R")
 ```
 
 # Introduction
@@ -42,20 +44,22 @@ Un HMM est défini par :
 
 L’objectif est de déterminer la séquence d’états cachés \( Q \) qui maximise \( P(Q|O) \).
 
-# Méthodes sur un exemple jouet
+# Méthodes
 
 ## Méthode naïve
 
 ```{r}
-# Exemple : exécution de la méthode naïve
-sequence_naive <- trouver_sequence_naive(obs, states, pi, A, B)
+obs_small <- sample(1:4, 6, replace = TRUE)
+result_naif <- trouver_sequence_naive_bio(obs_small, states, pi, A, B)
+print(result_naif)
 ```
 
 ## Algorithme de Viterbi
 
 ```{r}
-# Exemple d'appel de Viterbi
-sequence_viterbi <- viterbi(obs, states, pi, A, B)
+obs_long <- sample(1:4, 50, replace = TRUE)
+result_viterbi <- viterbi(obs_long, states, pi, A, B)
+print(result_viterbi)
 ```
 
 # Benchmark expérimental
@@ -79,108 +83,22 @@ ggplot(df_long, aes(x = Taille, y = Temps, color = Méthode)) +
 
 # Comparaison R vs C++
 
-```{r benchmark_cpp_plot, echo=FALSE, message=FALSE, warning=FALSE}
-source("C:/Users/gharb/Documents/M2algo_viterbi/M2algorithmique_Viterbi/simulations/benchmark_cpp.R")
+```{r benchmark_cpp_plot, message=FALSE, warning=FALSE}
+source("C:/Users/gharb/Documents/M2algo_viterbi/M2algorithmique_Viterbi/simulations/benchmark_cpp_bio.R")
 ```
 
 # Application bioinformatique : Prédiction de régions codantes dans l’ADN
 
-Dans cette seconde partie, nous simulons une séquence d’ADN avec des **régions codantes (C)** et **non codantes (N)**. Les matrices de transition et d’émission sont ensuite estimées à partir de cette séquence, puis utilisées pour appliquer les algorithmes.
-
-## Génération de la séquence et des exons
-
-```{r}
-set.seed(42)
-seq_length <- 500
-bases <- c("A", "T", "C", "G")
-seq <- paste(sample(bases, seq_length, replace = TRUE), collapse = "")
-seq <- DNAString(seq)
-states <- rep("N", seq_length)
-cds_start <- sample(1:(seq_length - 100), 10, replace = TRUE)
-cds_end <- cds_start + 100
-for (i in 1:length(cds_start)) {
-  states[cds_start[i]:cds_end[i]] <- "C"
-}
-```
-
-## Estimation des matrices A et B
-
-```{r}
-count_CC <- count_CN <- count_NC <- count_NN <- 0
-count_A_C <- count_T_C <- count_C_C <- count_G_C <- 0
-count_A_N <- count_T_N <- count_C_N <- count_G_N <- 0
-
-for (i in 2:seq_length) {
-  if (states[i-1] == "C" && states[i] == "C") count_CC <- count_CC + 1
-  else if (states[i-1] == "C") count_CN <- count_CN + 1
-  else if (states[i] == "C") count_NC <- count_NC + 1
-  else count_NN <- count_NN + 1
-
-  base <- substring(as.character(seq), i, i)
-  if (states[i] == "C") {
-    if (base == "A") count_A_C <- count_A_C + 1
-    if (base == "T") count_T_C <- count_T_C + 1
-    if (base == "C") count_C_C <- count_C_C + 1
-    if (base == "G") count_G_C <- count_G_C + 1
-  } else {
-    if (base == "A") count_A_N <- count_A_N + 1
-    if (base == "T") count_T_N <- count_T_N + 1
-    if (base == "C") count_C_N <- count_C_N + 1
-    if (base == "G") count_G_N <- count_G_N + 1
-  }
-}
-
-total_transitions <- count_CC + count_CN + count_NC + count_NN
-A <- matrix(c(
-  count_CC / total_transitions, count_CN / total_transitions,
-  count_NC / total_transitions, count_NN / total_transitions
-), byrow = TRUE, nrow = 2)
-rownames(A) <- colnames(A) <- c("C", "N")
-
-total_C <- count_A_C + count_T_C + count_C_C + count_G_C
-total_N <- count_A_N + count_T_N + count_C_N + count_G_N
-
-B <- matrix(c(
-  count_A_C / total_C, count_T_C / total_C, count_C_C / total_C, count_G_C / total_C,
-  count_A_N / total_N, count_T_N / total_N, count_C_N / total_N, count_G_N / total_N
-), byrow = TRUE, nrow = 2)
-rownames(B) <- c("C", "N")
-colnames(B) <- c("A", "T", "C", "G")
-
-print(A)
-print(B)
-
-pi <- c(0.5, 0.5)
-states <- c("C", "N")
-```
+Dans cette seconde partie, nous simulons une séquence d’ADN avec des **régions codantes (C)** et **non codantes (N)**. Les matrices de transition et d’émission sont ensuite estimées à partir de cette séquence, puis utilisées pour appliquer l’algorithme de Viterbi.
 
 ## Résultats des algorithmes
 
 ```{r}
-# Séquence courte pour la méthode naïve
-obs_small <- sample(1:4, 6, replace = TRUE)
-
-# Méthode naïve sur obs_small
-result_naif <- trouver_sequence_naive(obs_small, c("C", "N"), pi, A, B)
-
-
-# Séquence plus longue
-obs_long <- sample(1:4, 50, replace = TRUE)
-
-# Méthode Viterbi (optimisée)
-result_viterbi <- viterbi_bio_optimise(obs_long, pi, A, B)
-
-cat("\nRésultats de l'algorithme Naïf (R):\n")
+cat("Résultat de l'algorithme Naïf (R):\n")
 print(result_naif)
 
-cat("\nRésultats de l'algorithme Viterbi (R):\n")
+cat("\nRésultat de l'algorithme Viterbi (R):\n")
 print(result_viterbi)
-```
-
-## Benchmark sur l'ADN
-
-```{r}
-source("C:/Users/gharb/Documents/M2algo_viterbi/M2algorithmique_Viterbi/simulations/benchmark_cpp_bio.R")
 ```
 
 # Conclusion

@@ -1,0 +1,18 @@
+Package: viterbiM2
+Title: Implémentation de l'algorithme de Viterbi en R et C++
+Version: 0.1.0
+Authors@R: 
+    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"))
+Author: Mohamed Skander Gharbi [aut, cre]
+Maintainer: Mohamed Skander Gharbi <gharbiskander2002@gmail.com>
+Description: Ce package implémente l'algorithme de Viterbi et sa version
+    naïve, avec une application à la bioinformatique (séquences d'ADN).
+License: MIT
+Imports: 
+    gtools,
+    Rcpp
+LinkingTo: 
+    Rcpp
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
