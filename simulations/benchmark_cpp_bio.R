@@ -5,15 +5,15 @@ library(ggplot2)
 library(microbenchmark)
 
 # Charger les matrices depuis le fichier viterbi_brca1.R
-source("C:/Users/gharb/Documents/M2algo_viterbi/M2algorithmique_Viterbi/simulations/viterbi_brca1.R")
+source("C:/Users/gharb/Documents/M2algo_viterbi/viterbiM2/simulations/viterbi_brca1.R")
 
 # Charger les fonctions R pour les versions naïve et optimisée
-source("C:/Users/gharb/Documents/M2algo_viterbi/M2algorithmique_Viterbi/src/naive_R/viterbi_naive_bio.R")
-source("C:/Users/gharb/Documents/M2algo_viterbi/M2algorithmique_Viterbi/src/viterbi_R/viterbi_bio.R")
+source("C:/Users/gharb/Documents/M2algo_viterbi/viterbiM2/R/viterbi_bio_naive.R")
+source("C:/Users/gharb/Documents/M2algo_viterbi/viterbiM2/src/viterbi_R/viterbi_bio.R")
 
 # Charger les versions C++ via Rcpp
-sourceCpp("C:/Users/gharb/Documents/M2algo_viterbi/M2algorithmique_Viterbi/src/viterbi_CPP/viterbi_bio.cpp")
-sourceCpp("C:/Users/gharb/Documents/M2algo_viterbi/M2algorithmique_Viterbi/src/naive_CPP/viterbi_naive_bio.cpp")
+sourceCpp("C:/Users/gharb/Documents/M2algo_viterbi/viterbiM2/src/viterbi_bio.cpp")
+sourceCpp("C:/Users/gharb/Documents/M2algo_viterbi/viterbiM2/src/naive_CPP/viterbi_naive_bio.cpp")
 
 # Paramètres communs
 states <- c("C", "N")  # Codant et Non-Codant

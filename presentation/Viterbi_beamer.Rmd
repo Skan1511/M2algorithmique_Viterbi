@@ -1,0 +1,72 @@
+---
+title: "Algorithme de Viterbi — Présentation M2"
+author: "Mohamed Skander Gharbi"
+date: "`r Sys.Date()`"
+output:
+  beamer_presentation:
+    theme: "Madrid"
+    colortheme: "dolphin"
+    fonttheme: "professionalfonts"
+    highlight: "tango"
+---
+
+# Introduction
+
+- Modèles de Markov Cachés (HMM)
+- Objectif : retrouver la séquence d'états cachés la plus probable
+- Deux méthodes comparées :
+  - Approche naïve par force brute
+  - Algorithme de Viterbi (programmation dynamique)
+
+# Exemple jouet : Pluie / Soleil
+
+```{r, echo=TRUE, eval=TRUE}
+states <- c("Pluie", "Soleil")
+obs <- c(1, 2, 1, 2, 1)  # 1 = marcher, 2 = shopping
+A <- matrix(c(0.7, 0.3, 0.4, 0.6), nrow = 2, byrow = TRUE)
+B <- matrix(c(0.9, 0.1, 0.2, 0.8), nrow = 2, byrow = TRUE)
+pi <- c(0.6, 0.4)
+
+library(viterbiM2)
+res_naive <- trouver_sequence_naive(obs, states, pi, A, B)
+res_vit <- viterbi(obs, states, pi, A, B)
+res_naive
+res_vit
+```
+
+# Application ADN simulé
+
+- Génération d'une séquence ADN aléatoire
+- Définition des régions codantes (C) et non codantes (N)
+- Estimation des matrices `A` (transition) et `B` (émission)
+
+```{r, echo=FALSE, results='hide'}
+source("simulations/viterbi_brca1.R")
+```
+
+# Résultats ADN
+
+```{r, echo=TRUE, results='asis'}
+obs_adn <- sample(1:4, 50, replace = TRUE)
+res_adn <- viterbi(obs_adn, states, pi, A, B)
+cat("Séquence prédite (Viterbi):\n")
+print(res_adn)
+```
+
+# Benchmark R vs C++
+
+- Implémentations en R et C++
+- Comparaison avec `microbenchmark`
+
+```{r, echo=FALSE, out.width='0.8\textwidth', fig.align='center'}
+knitr::include_graphics("simulations/benchmark_bio.png")
+```
+
+# Conclusion
+
+- Viterbi : efficace et scalable
+- Résultats cohérents entre les implémentations
+- Potentiel fort en bioinformatique (annotation de gènes)
+
+Merci pour votre attention !
+

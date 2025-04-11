@@ -2,112 +2,168 @@
 title: "Algorithme de Viterbi — Rapport M2"
 author: "Mohamed Skander Gharbi"
 date: "`r Sys.Date()`"
-output: html_document
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+source("C:/Users/gharb/Documents/M2algo_viterbi/viterbiM2/src/naive_R/viterbi_naive_bio.R")
+source("C:/Users/gharb/Documents/M2algo_viterbi/viterbiM2/src/viterbi_R/viterbi_bio.R")
+
 ```
 
 ```{r}
-# Installation du package depuis GitHub (à adapter si un jour tu publies)
-devtools::install_github("Skan1511/viterbiM2")
+# Installation du package depuis GitHub 
+ devtools::install_github("Skan1511/M2algorithmique_Viterbi")
 
-# Chargement des packages nécessaires
+# Chargement des packages
 library(gtools)
 library(ggplot2)
 library(reshape2)
 library(Biostrings)
 
-# Chargement des fonctions définies dans tes scripts
-source("C:/Users/gharb/Documents/M2algo_viterbi/M2algorithmique_Viterbi/src/naive_R/viterbi_naive.R")
-source("C:/Users/gharb/Documents/M2algo_viterbi/M2algorithmique_Viterbi/src/viterbi_R/viterbi_algo.R")
-source("C:/Users/gharb/Documents/M2algo_viterbi/M2algorithmique_Viterbi/simulations/viterbi_brca1.R")
+# Chargement des fonctions du projet
+source("C:/Users/gharb/Documents/M2algo_viterbi/viterbiM2/src/naive_R/viterbi_naive.R")
+source("C:/Users/gharb/Documents/M2algo_viterbi/viterbiM2/src/viterbi_R/viterbi_algo.R")
+source("C:/Users/gharb/Documents/M2algo_viterbi/viterbiM2/simulations/viterbi_brca1.R")
 ```
 
 # Introduction
 
-Dans ce projet, nous avons étudié et comparé deux approches de décodage de séquences dans les modèles de Markov cachés (HMM) :
-- Une méthode **naïve** par force brute,
+Dans ce projet, nous étudions deux approches pour résoudre le problème du décodage dans un modèle de Markov caché (HMM) :
+- Une **approche naïve** par force brute,
 - L’**algorithme de Viterbi**, basé sur la programmation dynamique.
 
-Nous avons tout d’abord testé nos algorithmes sur un exemple jouet (pluie/soleil), puis nous avons appliqué ces méthodes à un problème plus réaliste issu de la bioinformatique : **la détection de régions codantes dans une séquence d’ADN**.
+Nous appliquons d’abord ces méthodes sur un exemple jouet (Pluie/Soleil), puis sur des **séquences d’ADN simulées** contenant des régions codantes et non codantes.
 
-# Problème étudié
+# Exemple jouet : Modèle Pluie/Soleil
 
-Un HMM est défini par :
-- Un ensemble d'états cachés : \( S = \{s_1, s_2, \dots, s_N\} \)
-- Une séquence d'observations : \( O = \{o_1, o_2, \dots, o_T\} \)
+```{r}
+states_ps <- c("Pluie", "Soleil")
+obs_ps <- c(1, 2, 1, 2, 1)
+A_ps <- matrix(c(0.7, 0.3, 0.4, 0.6), nrow = 2, byrow = TRUE)
+B_ps <- matrix(c(0.9, 0.1, 0.2, 0.8), nrow = 2, byrow = TRUE)
+pi_ps <- c(0.6, 0.4)
+
+res_naive_ps <- trouver_sequence_naive(obs_ps, states_ps, pi_ps, A_ps, B_ps)
+res_vit_ps <- viterbi(obs_ps, states_ps, pi_ps, A_ps, B_ps)
+
+cat("Méthode Naïve (Pluie/Soleil):\n"); print(res_naive_ps)
+cat("\nMéthode Viterbi (Pluie/Soleil):\n"); print(res_vit_ps)
+library(microbenchmark)
+
+bm_jouet <- microbenchmark(
+  naive_R = trouver_sequence_naive(obs_ps, states_ps, pi_ps, A_ps, B_ps),
+  viterbi_R = viterbi(obs_ps, states_ps, pi_ps, A_ps, B_ps),
+  times = 10L
+)
+
+df_jouet <- as.data.frame(bm_jouet)
+ggplot(df_jouet, aes(x = expr, y = time / 1e6, fill = expr)) +
+  geom_boxplot() +
+  labs(
+    title = "Benchmark sur l'exemple jouet (Pluie/Soleil)",
+    x = "Méthode",
+    y = "Temps (ms)"
+  ) +
+  theme_minimal(base_size = 14)
+
+```
+
+# Modèle HMM : Rappel
+
+Un modèle de Markov caché est défini par :
+- Un ensemble d'états cachés \( S = \{s_1, s_2, \dots, s_N\} \)
+- Une séquence d'observations \( O = \{o_1, o_2, \dots, o_T\} \)
 - Une matrice de transition \( A \)
-- Une matrice d'émission \( B \)
+- Une matrice d’émission \( B \)
 - Un vecteur de probabilités initiales \( \pi \)
 
-L’objectif est de déterminer la séquence d’états cachés \( Q \) qui maximise \( P(Q|O) \).
+Notre objectif est d’estimer la séquence d’états la plus probable ayant généré la suite d’observations.
 
-# Méthodes
+# Simulation d’une séquence ADN
 
-## Méthode naïve
+```{r}
+set.seed(42)
+seq_length <- 500
+bases <- c("A", "T", "C", "G")
+seq <- paste(sample(bases, seq_length, replace = TRUE), collapse = "")
+seq <- DNAString(seq)
+states <- rep("N", seq_length)
+cds_start <- sample(1:(seq_length - 100), 10, replace = TRUE)
+cds_end <- cds_start + 100
+for (i in 1:length(cds_start)) {
+  states[cds_start[i]:cds_end[i]] <- "C"
+}
+```
+
+# Estimation des matrices de transition et d’émission
+
+```{r}
+count_CC <- count_CN <- count_NC <- count_NN <- 0
+count_A_C <- count_T_C <- count_C_C <- count_G_C <- 0
+count_A_N <- count_T_N <- count_C_N <- count_G_N <- 0
+
+for (i in 2:seq_length) {
+  if (states[i-1] == "C" && states[i] == "C") count_CC <- count_CC + 1
+  else if (states[i-1] == "C") count_CN <- count_CN + 1
+  else if (states[i-1] == "N" && states[i] == "C") count_NC <- count_NC + 1
+  else count_NN <- count_NN + 1
+
+  base <- substring(as.character(seq), i, i)
+  if (states[i] == "C") {
+    if (base == "A") count_A_C <- count_A_C + 1
+    if (base == "T") count_T_C <- count_T_C + 1
+    if (base == "C") count_C_C <- count_C_C + 1
+    if (base == "G") count_G_C <- count_G_C + 1
+  } else {
+    if (base == "A") count_A_N <- count_A_N + 1
+    if (base == "T") count_T_N <- count_T_N + 1
+    if (base == "C") count_C_N <- count_C_N + 1
+    if (base == "G") count_G_N <- count_G_N + 1
+  }
+}
+
+A <- matrix(c(count_CC, count_CN, count_NC, count_NN), nrow = 2, byrow = TRUE)
+A <- A / rowSums(A)
+rownames(A) <- colnames(A) <- c("C", "N")
+
+B <- matrix(c(count_A_C, count_T_C, count_C_C, count_G_C,
+              count_A_N, count_T_N, count_C_N, count_G_N),
+            nrow = 2, byrow = TRUE)
+B <- B / rowSums(B)
+rownames(B) <- c("C", "N")
+colnames(B) <- c("A", "T", "C", "G")
+
+pi <- c(sum(states == "C"), sum(states == "N"))
+pi <- pi / sum(pi)
+```
+
+# Application des algorithmes sur ADN
 
 ```{r}
 obs_small <- sample(1:4, 6, replace = TRUE)
-result_naif <- trouver_sequence_naive_bio(obs_small, states, pi, A, B)
-print(result_naif)
-```
-
-## Algorithme de Viterbi
-
-```{r}
 obs_long <- sample(1:4, 50, replace = TRUE)
-result_viterbi <- viterbi(obs_long, states, pi, A, B)
-print(result_viterbi)
+
+result_naif <- trouver_sequence_naive_bio(obs_small, c("C", "N"), pi, A, B)
+result_viterbi <- viterbi(obs_long, c("C", "N"), pi, A, B)
+
+cat("Résultat Naïf ADN:\n"); print(result_naif)
+cat("\nRésultat Viterbi ADN:\n"); print(result_viterbi)
+
 ```
 
-# Benchmark expérimental
+
+Nous avons mesuré le temps d'exécution des algorithmes sur des séquences d'ADN simulées. Le graphique suivant montre la comparaison :
+
+```{r echo=FALSE, out.width="70%", fig.align="center"}
+knitr::include_graphics("C:/Users/gharb/Documents/M2algo_viterbi/viterbiM2/benchmark_bio.png")
+# Benchmark R vs C++
 
 ```{r}
-source("C:/Users/gharb/Documents/M2algo_viterbi/M2algorithmique_Viterbi/simulations/benchmark_tailles.R")
-df_long <- melt(df, id.vars = "Taille", variable.name = "Méthode", value.name = "Temps")
-
-ggplot(df_long, aes(x = Taille, y = Temps, color = Méthode)) +
-  geom_line(size = 1.2) +
-  geom_point(size = 2) +
-  labs(
-    title = "Temps d'exécution selon la taille de la séquence",
-    x = "Taille de la séquence observée",
-    y = "Temps (secondes)",
-    color = "Méthode"
-  ) +
-  theme_minimal(base_size = 14) +
-  theme(plot.title = element_text(hjust = 0.5), legend.position = "bottom")
-```
-
-# Comparaison R vs C++
-
-```{r benchmark_cpp_plot, message=FALSE, warning=FALSE}
-source("C:/Users/gharb/Documents/M2algo_viterbi/M2algorithmique_Viterbi/simulations/benchmark_cpp_bio.R")
-```
-
-# Application bioinformatique : Prédiction de régions codantes dans l’ADN
-
-Dans cette seconde partie, nous simulons une séquence d’ADN avec des **régions codantes (C)** et **non codantes (N)**. Les matrices de transition et d’émission sont ensuite estimées à partir de cette séquence, puis utilisées pour appliquer l’algorithme de Viterbi.
-
-## Résultats des algorithmes
-
-```{r}
-cat("Résultat de l'algorithme Naïf (R):\n")
-print(result_naif)
-
-cat("\nRésultat de l'algorithme Viterbi (R):\n")
-print(result_viterbi)
+source("C:/Users/gharb/Documents/M2algo_viterbi/viterbiM2/simulations/benchmark_cpp_bio.R")
 ```
 
 # Conclusion
 
-Ce projet a permis de comparer deux approches d’inférence de séquences dans un modèle HMM. La version optimisée (Viterbi) montre une supériorité claire en performance.
-
-L’application à une séquence d’ADN montre la capacité de cet algorithme à s’adapter à des cas réels, notamment dans le domaine de la bioinformatique (annotation de gènes).
-
-Des pistes d’amélioration incluent :
-- L’intégration de l’algorithme dans un pipeline bioinformatique complet
-- La visualisation des séquences prédites
-- Le traitement de séquences génomiques réelles
+Nous avons comparé une méthode naïve et l’algorithme de Viterbi sur des séquences simulées et une application ADN. Viterbi se démarque par son efficacité et sa précision. Cette expérience ouvre la voie à des applications réelles comme l’annotation automatique de génomes.
