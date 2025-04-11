@@ -2,7 +2,7 @@
 title: "Algorithme de Viterbi — Rapport M2"
 author: "Mohamed Skander Gharbi"
 date: "`r Sys.Date()`"
-output: pdf_document
+output: html_document
 ---
 
 ```{r setup, include=FALSE}
@@ -14,66 +14,54 @@ knitr::opts_chunk$set(echo = TRUE)
 library(gtools)
 library(ggplot2)
 library(reshape2)
+library(Biostrings)
 
 # Chargement des fonctions définies dans tes scripts
 source("C:/Users/gharb/Documents/M2algo_viterbi/M2algorithmique_Viterbi/src/naive_R/viterbi_naive.R")
 source("C:/Users/gharb/Documents/M2algo_viterbi/M2algorithmique_Viterbi/src/viterbi_R/viterbi_algo.R")
-
+source("C:/Users/gharb/Documents/M2algo_viterbi/M2algorithmique_Viterbi/src/naive_R/viterbi_naive_bio.R")
+source("C:/Users/gharb/Documents/M2algo_viterbi/M2algorithmique_Viterbi/src/viterbi_R/viterbi_bio.R")
 ```
-## Introduction
 
-Dans le cadre de ce projet, nous étudions l'algorithme de Viterbi, une méthode classique de programmation dynamique utilisée pour résoudre des problèmes de reconnaissance de séquences. Cet algorithme est notamment utilisé dans les modèles de Markov cachés (HMM - Hidden Markov Models), où l'objectif est de retrouver la séquence d'états cachés la plus probable ayant généré une suite d'observations.
+# Introduction
 
-Nous comparons cette solution optimisée à une approche naïve (brute-force) qui teste toutes les séquences d'états possibles. Cette comparaison permettra de mettre en évidence l'intérêt pratique de l'algorithme de Viterbi.
+Dans ce projet, nous avons étudié et comparé deux approches de décodage de séquences dans les modèles de Markov cachés (HMM) :
+- Une méthode **naïve** par force brute,
+- L’**algorithme de Viterbi**, basé sur la programmation dynamique.
 
----
+Nous avons tout d’abord testé nos algorithmes sur un exemple jouet (pluie/soleil), puis nous avons appliqué ces méthodes à un problème plus réaliste issu de la bioinformatique : **la détection de régions codantes dans une séquence d’ADN**.
 
-## Problème étudié
+# Problème étudié
 
-On considère un modèle de Markov caché défini par :
+Un HMM est défini par :
 - Un ensemble d'états cachés : \( S = \{s_1, s_2, \dots, s_N\} \)
 - Une séquence d'observations : \( O = \{o_1, o_2, \dots, o_T\} \)
-- Une matrice de transition \( A \) entre états cachés
-- Une matrice d'émission \( B \) reliant les états aux observations
+- Une matrice de transition \( A \)
+- Une matrice d'émission \( B \)
 - Un vecteur de probabilités initiales \( \pi \)
 
-L'objectif est de trouver la séquence d'états cachés \( Q = \{q_1, q_2, \dots, q_T\} \) qui maximise la probabilité \( P(Q|O) \), c’est-à-dire la séquence d’états la plus probable étant donné les observations.
+L’objectif est de déterminer la séquence d’états cachés \( Q \) qui maximise \( P(Q|O) \).
 
----
+# Méthodes sur un exemple jouet
 
-## Méthodes
-
-### Méthode naïve (brute-force)
-
-La méthode naïve consiste à générer **toutes les combinaisons possibles** d'états cachés de taille \( T \), puis à calculer leur probabilité via le modèle HMM.  
-**Complexité :** \( O(N^T) \)
+## Méthode naïve
 
 ```{r}
 # Exemple : exécution de la méthode naïve
 sequence_naive <- trouver_sequence_naive(obs, states, pi, A, B)
 ```
+
 ## Algorithme de Viterbi
 
-L’algorithme de Viterbi repose sur la programmation dynamique. Il mémorise à chaque étape les meilleures probabilités d’atteindre chaque état, ainsi que le chemin correspondant.
-
-Cela permet de réduire considérablement le coût de calcul :  
-Complexité : \( O(N^2 \cdot T) \)
-
 ```{r}
-# Exemple d'appel de l’algorithme de Viterbi
+# Exemple d'appel de Viterbi
 sequence_viterbi <- viterbi(obs, states, pi, A, B)
-
 ```
-## Benchmark expérimental
 
-Nous avons réalisé un benchmark sur des séquences d’observations de taille croissante, afin de comparer le temps d’exécution des deux méthodes.
+# Benchmark expérimental
 
 ```{r}
 source("C:/Users/gharb/Documents/M2algo_viterbi/M2algorithmique_Viterbi/simulations/benchmark_tailles.R")
-
-library(ggplot2)
-library(reshape2)
-
 df_long <- melt(df, id.vars = "Taille", variable.name = "Méthode", value.name = "Temps")
 
 ggplot(df_long, aes(x = Taille, y = Temps, color = Méthode)) +
@@ -87,26 +75,121 @@ ggplot(df_long, aes(x = Taille, y = Temps, color = Méthode)) +
   ) +
   theme_minimal(base_size = 14) +
   theme(plot.title = element_text(hjust = 0.5), legend.position = "bottom")
-
-
 ```
-## Analyse des résultats
 
-Le graphique obtenu montre clairement la différence de complexité entre les deux approches :
+# Comparaison R vs C++
 
-La méthode naïve devient rapidement coûteuse lorsque la taille de la séquence dépasse 7 ou 8 observations.
+```{r benchmark_cpp_plot, echo=FALSE, message=FALSE, warning=FALSE}
+source("C:/Users/gharb/Documents/M2algo_viterbi/M2algorithmique_Viterbi/simulations/benchmark_cpp.R")
+```
 
-L’algorithme de Viterbi reste extrêmement rapide, même pour des séquences plus longues.
+# Application bioinformatique : Prédiction de régions codantes dans l’ADN
 
-Ces résultats confirment les complexités théoriques attendues.
+Dans cette seconde partie, nous simulons une séquence d’ADN avec des **régions codantes (C)** et **non codantes (N)**. Les matrices de transition et d’émission sont ensuite estimées à partir de cette séquence, puis utilisées pour appliquer les algorithmes.
 
-## Conclusion
-Ce projet nous a permis d’implémenter deux approches pour résoudre le problème de décodage dans un HMM : une version naïve par force brute et une version optimisée avec l’algorithme de Viterbi.
+## Génération de la séquence et des exons
 
-Les résultats empiriques obtenus montrent l'efficacité du Viterbi en termes de performance et de scalabilité, en particulier pour des séquences longues.
+```{r}
+set.seed(42)
+seq_length <- 500
+bases <- c("A", "T", "C", "G")
+seq <- paste(sample(bases, seq_length, replace = TRUE), collapse = "")
+seq <- DNAString(seq)
+states <- rep("N", seq_length)
+cds_start <- sample(1:(seq_length - 100), 10, replace = TRUE)
+cds_end <- cds_start + 100
+for (i in 1:length(cds_start)) {
+  states[cds_start[i]:cds_end[i]] <- "C"
+}
+```
 
-Des perspectives d’amélioration incluent :
+## Estimation des matrices A et B
 
-Une implémentation C++ avec Rcpp
+```{r}
+count_CC <- count_CN <- count_NC <- count_NN <- 0
+count_A_C <- count_T_C <- count_C_C <- count_G_C <- 0
+count_A_N <- count_T_N <- count_C_N <- count_G_N <- 0
 
-L’application de cet algorithme à des cas réels (reconnaissance vocale, bioinformatique, traitement automatique du langage, etc.)
+for (i in 2:seq_length) {
+  if (states[i-1] == "C" && states[i] == "C") count_CC <- count_CC + 1
+  else if (states[i-1] == "C") count_CN <- count_CN + 1
+  else if (states[i] == "C") count_NC <- count_NC + 1
+  else count_NN <- count_NN + 1
+
+  base <- substring(as.character(seq), i, i)
+  if (states[i] == "C") {
+    if (base == "A") count_A_C <- count_A_C + 1
+    if (base == "T") count_T_C <- count_T_C + 1
+    if (base == "C") count_C_C <- count_C_C + 1
+    if (base == "G") count_G_C <- count_G_C + 1
+  } else {
+    if (base == "A") count_A_N <- count_A_N + 1
+    if (base == "T") count_T_N <- count_T_N + 1
+    if (base == "C") count_C_N <- count_C_N + 1
+    if (base == "G") count_G_N <- count_G_N + 1
+  }
+}
+
+total_transitions <- count_CC + count_CN + count_NC + count_NN
+A <- matrix(c(
+  count_CC / total_transitions, count_CN / total_transitions,
+  count_NC / total_transitions, count_NN / total_transitions
+), byrow = TRUE, nrow = 2)
+rownames(A) <- colnames(A) <- c("C", "N")
+
+total_C <- count_A_C + count_T_C + count_C_C + count_G_C
+total_N <- count_A_N + count_T_N + count_C_N + count_G_N
+
+B <- matrix(c(
+  count_A_C / total_C, count_T_C / total_C, count_C_C / total_C, count_G_C / total_C,
+  count_A_N / total_N, count_T_N / total_N, count_C_N / total_N, count_G_N / total_N
+), byrow = TRUE, nrow = 2)
+rownames(B) <- c("C", "N")
+colnames(B) <- c("A", "T", "C", "G")
+
+print(A)
+print(B)
+
+pi <- c(0.5, 0.5)
+states <- c("C", "N")
+```
+
+## Résultats des algorithmes
+
+```{r}
+# Séquence courte pour la méthode naïve
+obs_small <- sample(1:4, 6, replace = TRUE)
+
+# Méthode naïve sur obs_small
+result_naif <- trouver_sequence_naive(obs_small, c("C", "N"), pi, A, B)
+
+
+# Séquence plus longue
+obs_long <- sample(1:4, 50, replace = TRUE)
+
+# Méthode Viterbi (optimisée)
+result_viterbi <- viterbi_bio_optimise(obs_long, pi, A, B)
+
+cat("\nRésultats de l'algorithme Naïf (R):\n")
+print(result_naif)
+
+cat("\nRésultats de l'algorithme Viterbi (R):\n")
+print(result_viterbi)
+```
+
+## Benchmark sur l'ADN
+
+```{r}
+source("C:/Users/gharb/Documents/M2algo_viterbi/M2algorithmique_Viterbi/simulations/benchmark_cpp_bio.R")
+```
+
+# Conclusion
+
+Ce projet a permis de comparer deux approches d’inférence de séquences dans un modèle HMM. La version optimisée (Viterbi) montre une supériorité claire en performance.
+
+L’application à une séquence d’ADN montre la capacité de cet algorithme à s’adapter à des cas réels, notamment dans le domaine de la bioinformatique (annotation de gènes).
+
+Des pistes d’amélioration incluent :
+- L’intégration de l’algorithme dans un pipeline bioinformatique complet
+- La visualisation des séquences prédites
+- Le traitement de séquences génomiques réelles
